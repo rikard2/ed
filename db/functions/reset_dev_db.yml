@@ -1,0 +1,139 @@
+---
+- hosts: dev
+  vars:
+    temp_db_name: "schema_db_tmp"
+    live_db_name: "db"
+    archive_db_name: ""
+    rev: "HEAD"
+  remote_user: ubuntu
+
+  tasks:
+    - name: Recursively remove directory
+      file:
+        path: /tmp/schema_tmp
+        state: absent
+      become: true
+
+    - name: Clone the latest schema repo (blip the yubikey)
+      git:
+        repo: git@github.com:TrustlyDev/schema.git
+        clone: true
+        version: "{{ rev }}"
+        dest: /tmp/schema_tmp
+
+    - name: Set ownership of cloned repo => autodeploy
+      file:
+        path: /tmp/schema_tmp
+        state: directory
+        recurse: yes
+        owner: autodeploy
+        group: autodeploy
+      become: true
+
+    - name: Create New DB
+      command: createdb {{ temp_db_name }}
+      become: true
+      become_user: autodeploy
+
+    - name: Install Schema into new database
+      command: instances/install.sh
+      environment:
+        SKIPTESTS: 1
+        FULL: dev.trustlylabs.com
+        PGDATABASE: "{{ temp_db_name }}"
+      become: true
+      become_user: autodeploy
+      args:
+        chdir: /tmp/schema_tmp
+
+    - name: Delete current RSA Key from new db
+      command: psql {{ temp_db_name }} -AX -qt -c "DELETE FROM RSAKey;"
+      become: true
+      become_user: autodeploy
+
+    - name: Copy RSA key to new DB
+      shell: pg_dump -a -t rsakey db | psql -AX schema_db_tmp
+      become: true
+      become_user: autodeploy
+
+    - name: New queries on the new DB
+      command: psql {{ temp_db_name }} -AX -c "{{ item }}"
+      become: true
+      become_user: autodeploy
+      loop:
+        - WITH NewBankDeposit AS(
+              SELECT * FROM _New_BankDeposit(get_userid('apitest'),'','','FUNDING') x(BankDepositID)
+          )
+          SELECT New_Bank_Ledger_Record_Forced(
+              _BankAccountID := 361,
+              _Amount := 100000,
+              _Currency := 'EUR',
+              _TransactionDate := now()::date,
+              _StatementReference := NewBankDeposit.BankDepositID::text,
+              _Sequence := 1,
+              _StatementText := '',
+              _SkipProcessing := false
+          )
+          FROM NewBankDeposit;
+        - WITH Exchange_To_Currencies AS(
+              SELECT ARRAY['SEK', 'DKK', 'NOK', 'PLN', 'GBP'] AS Currencies /* Currencies to exchange EUR to */
+          ),
+          FX AS (
+              SELECT
+                  Get_Flag_Value('username','apitest','CREATE_IF_NOT_FOUND') AS FlagValueID,
+                  unnest(Currencies) AS Currency,
+                  FX('EUR', unnest(Currencies)) * -5000 AS Balance,
+                  FX('EUR', unnest(Currencies)) *  5000 AS CreditTotalAmount
+              FROM Exchange_To_Currencies
+          ),
+          New_FlagValueAccountingBalances AS(
+              INSERT INTO FlagValueAccountingBalances (FlagValueID,       AccountName, Currency, Balance, CreditTotalAmount, DebitTotalAmount)
+              SELECT                                   FlagValueID, 'CLIENT_BALANCES', Currency, Balance, CreditTotalAmount, 0
+              FROM FX
+              RETURNING FlagValueID
+          )
+          UPDATE FlagValueAccountingBalances
+          SET Balance = Balance + (N.NumExchanges * 5000),
+              DebitTotalAmount = DebitTotalAmount + (N.NumExchanges * 5000)
+          FROM (SELECT COUNT(*) AS NumExchanges, FlagValueID FROM New_FlagValueAccountingBalances GROUP BY FlagValueID)N
+          WHERE FlagValueAccountingBalances.FlagValueID = N.FlagValueID
+          AND   FlagValueAccountingBalances.Currency = 'EUR'
+          AND   FlagValueAccountingBalances.AccountName = 'CLIENT_BALANCES';
+
+      - name: Stopping pgcronjob
+        service:
+          name: pgcronjob
+          state: stopped
+        become: true
+
+      - name: Stopping dbworker
+        service:
+          name: dbworker
+          state: stopped
+        become: true
+
+      - name: Switch DB
+        command: psql postgres -AX -c "{{ item }}"
+        become: true
+        become_user: autodeploy
+        loop:
+          - BEGIN;
+            SELECT pg_terminate_backend (pid)
+            FROM pg_stat_activity
+            WHERE datname = 'db';
+
+            ALTER DATABASE db RENAME TO "db_{{ ansible_date_time.iso8601_basic_short }}";
+            ALTER DATABASE schema_db_tmp RENAME TO db;
+            ROLLBACK;
+
+      - name: Starting pgcronjob
+        service:
+          name: pgcronjob
+          state: started
+        become: true
+
+      - name: Starting dbworker
+        service:
+          name: dbworker
+          state: started
+        become: true

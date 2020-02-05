@@ -1,0 +1,9 @@
+\i /db/tables/users.sql
+\i /db/tables/courses.sql
+\i /db/tables/exercises.sql
+\i /db/tables/lessons.sql
+\i /db/functions/lessons.sql
+\i /db/functions/json_pretty.sql
+\i /db/functions/transactions.sql
+\i /db/functions/exercises.sql
+\i /db/functions/get_lesson.sql
