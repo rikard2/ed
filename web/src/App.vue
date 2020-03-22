@@ -1,30 +1,21 @@
 <template>
 <div id="app" v-cloak>
-    <nav id="navbar-clone" class="navbar is-fresh is-active has-shadow" role="navigation" aria-label="main navigation">
+    <nav id="navbar-clone" class="navbar is-fresh is-active has-shadow is-info" role="navigation" aria-label="main navigation">
         <div class="container">
             <div class="navbar-brand">
-                <a class="navbar-item" href="/">Lang</a>
+                <a class="navbar-item" href="/" style="font-size: 25px">
+                    finanza
+                </a>
             </div>
             <div id="cloned-navbar-menu" class="navbar-menu is-fixed">
                 <div class="navbar-end">
-                    <a href="#" class="navbar-item is-secondary" v-if="!$session.get('sessionid')">
-                        Funktioner
+                    <a href="#" class="navbar-item is-secondary">
+                        Jämför Privatlån
+                    </a>
+                    <a href="#" class="navbar-item is-secondary">
+                        Jämför Kreditkort
                     </a>
                 </div>
-                <a href="#" class="navbar-item is-secondary" @click="isLoginModalActive = true" v-if="!$session.get('sessionid')">
-                    Logga in
-                </a>
-                <a class="navbar-item" v-if="!$session.get('sessionid')">
-                    <span class="button signup-button rounded secondary-btn is-primary raised" @click="isRegisterModalActive = true">
-                        Kom igång
-                    </span>
-                </a>
-                <a href="#/user/budget" class="navbar-item is-secondary" v-if="$session.get('sessionid')">
-                    Mina sidor
-                </a>
-                <a href="#" class="navbar-item is-secondary" @click="logout()" v-if="$session.get('sessionid')">
-                    Logga ut {{ $session.get('email') }}
-                </a>
             </div>
         </div>
     </nav>
@@ -41,6 +32,13 @@
     <b-modal :width="640" :active.sync="isRegisterModalActive">
         <register></register>
     </b-modal>
+    <footer class="footer" style="margin-top: 100px;">
+        <div class="content has-text-centered">
+            <p>
+                Copyright 2020
+            </p>
+        </div>
+    </footer>
 </div>
 
 </template>

@@ -5,14 +5,33 @@ import Budget from '@/components/user/Budget'
 import Transactions from '@/components/user/Transactions'
 import User from '@/components/user/User'
 import Lesson from '@/components/user/Lesson'
+import Loan from '@/components/loan'
+import LoanSearch from '@/components/loansearch'
+import Company from '@/components/company'
 Vue.use(Router)
 
 export default new Router({
     routes: [
         {
             path: '/',
-            name: 'Transactions',
-            component: Transactions
+            name: 'Loan',
+            component: Loan
+        },
+        {
+            path: '/loans',
+            name: 'Loans',
+            component: Loan
+        },
+        {
+            path: '/loansearch/:id',
+            name: 'LoanSearch',
+            props: true,
+            component: LoanSearch
+        },
+        {
+            path: '/company',
+            name: 'Company',
+            component: Company
         },
         {
             path: '/lesson',

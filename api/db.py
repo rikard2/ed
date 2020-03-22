@@ -3,7 +3,13 @@ from collections import namedtuple
 
 class DB:
     def __init__(self):
-        self.conn = psycopg2.connect(user="postgres", host="db", port="5432", database="db", password="db")
+        self.conn = psycopg2.connect(
+            user="ed",
+            host="ed.ckpqsf4ulmrw.eu-west-1.rds.amazonaws.com",
+            port="5432",
+            database="money",
+            password="BrbjVd*dKine"
+        )
 
     def build_params(self, obj):
         params = []
